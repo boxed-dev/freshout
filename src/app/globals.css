@@ -12,12 +12,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* Force light mode by ignoring OS dark preference */
+/* Previously, we changed variables under prefers-color-scheme: dark. */
+/* Commented out to lock app to light palette. */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
