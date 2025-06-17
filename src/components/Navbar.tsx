@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useChat } from '@/contexts/ChatContext';
-import { ShoppingCart, MessageSquare } from 'lucide-react';
+import { ShoppingCart, MessageSquare, Leaf } from 'lucide-react';
 
 const Navbar = () => {
   const router = useRouter();
@@ -11,22 +11,24 @@ const Navbar = () => {
   const { setIsOpen, isOpen } = useChat();
 
   return (
-    <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4">
+    <nav className="bg-white/80 backdrop-blur-md border-b border-neutral-200/50 sticky top-0 z-40">
+      <div className="max-w-6xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           <div 
-            className="flex items-center cursor-pointer"
+            className="flex items-center cursor-pointer group"
             onClick={() => router.push('/')}
           >
-            <span className="text-2xl mr-2">🥬</span>
-            <span className="text-xl font-bold text-gray-900">FreshVeg</span>
+            <div className="bg-emerald-100 p-2 rounded-xl mr-3 group-hover:bg-emerald-200 transition-colors">
+              <Leaf className="w-5 h-5 text-emerald-600" />
+            </div>
+            <span className="text-xl font-semibold text-neutral-900 tracking-tight">FreshVeg</span>
           </div>
           
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               onClick={() => router.push('/')}
-              className="text-gray-700 hover:text-green-600"
+              className="text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-xl transition-all duration-200"
             >
               Home
             </Button>
@@ -34,12 +36,12 @@ const Navbar = () => {
             <Button
               variant="ghost"
               onClick={() => router.push('/cart')}
-              className="relative text-gray-700 hover:text-green-600"
+              className="relative text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-xl transition-all duration-200"
             >
-              <ShoppingCart className="w-5 h-5 mr-2" />
+              <ShoppingCart className="w-4 h-4 mr-2" />
               Cart
               {state.items.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-emerald-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
                   {state.items.length}
                 </span>
               )}
@@ -48,9 +50,9 @@ const Navbar = () => {
             <Button
               variant="ghost"
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-700 hover:text-green-600"
+              className="text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-xl transition-all duration-200"
             >
-              <MessageSquare className="w-5 h-5 mr-2" />
+              <MessageSquare className="w-4 h-4 mr-2" />
               Chat
             </Button>
           </div>
