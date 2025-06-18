@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useChat } from '@/contexts/ChatContext';
-import { ShoppingCart, MessageSquare, Leaf } from 'lucide-react';
+import { ShoppingCart, MessageSquare, Leaf } from '@/lib/icons';
 
-const Navbar = () => {
+const Navbar = memo(() => {
   const router = useRouter();
   const { state } = useCart();
   const { setIsOpen, isOpen } = useChat();
@@ -16,7 +16,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between h-16">
           <div 
             className="flex items-center cursor-pointer group"
-            onClick={() => router.push('/')}
+            onClick={useCallback(() => router.push('/'), [router])}
           >
             <div className="bg-emerald-100 p-2 rounded-xl mr-3 group-hover:bg-emerald-200 transition-colors">
               <Leaf className="w-5 h-5 text-emerald-600" />
@@ -27,7 +27,7 @@ const Navbar = () => {
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
-              onClick={() => router.push('/')}
+              onClick={useCallback(() => router.push('/'), [router])}
               className="text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-xl transition-all duration-200"
             >
               Home
@@ -35,7 +35,7 @@ const Navbar = () => {
             
             <Button
               variant="ghost"
-              onClick={() => router.push('/cart')}
+              onClick={useCallback(() => router.push('/cart'), [router])}
               className="relative text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-xl transition-all duration-200"
             >
               <ShoppingCart className="w-4 h-4 mr-2" />
@@ -49,7 +49,7 @@ const Navbar = () => {
             
             <Button
               variant="ghost"
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={useCallback(() => setIsOpen(!isOpen), [setIsOpen, isOpen])}
               className="text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 px-4 py-2 rounded-xl transition-all duration-200"
             >
               <MessageSquare className="w-4 h-4 mr-2" />
@@ -60,6 +60,8 @@ const Navbar = () => {
       </div>
     </nav>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';
 
 export default Navbar;

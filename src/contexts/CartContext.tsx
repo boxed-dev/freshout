@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useMemo } from 'react';
 import { db } from '@/lib/db';
 
 export interface Product {
@@ -176,8 +176,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'CLEAR_CART' });
   };
 
+  const contextValue = useMemo(() => ({
+    state,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart
+  }), [state, addItem, removeItem, updateQuantity, clearCart]);
+
   return (
-    <CartContext.Provider value={{ state, addItem, removeItem, updateQuantity, clearCart }}>
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

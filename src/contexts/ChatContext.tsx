@@ -40,9 +40,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   
   // Real-time cart monitoring for enhanced context
   const [lastCartUpdate, setLastCartUpdate] = useState(Date.now());
+  const [cartStateRef, setCartStateRef] = useState(cartState);
   
   useEffect(() => {
     setLastCartUpdate(Date.now());
+    setCartStateRef(cartState);
   }, [cartState.items, cartState.total]);
 
   // Pre-fetch commonly visited routes for snappier navigation
@@ -102,26 +104,71 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const processNavigationCommand = (response: string): string => {
+    let hasNavigation = false;
+    let navigationMessage = '';
+    
     if (response.includes('navigate:home')) {
       router.push('/');
       setCurrentPage('home');
+      hasNavigation = true;
+      navigationMessage = '\n\n📍 Navigating to home page...';
     } else if (response.includes('navigate:cart')) {
       router.push('/cart');
       setCurrentPage('cart');
+      hasNavigation = true;
+      navigationMessage = '\n\n📍 Taking you to your cart...';
     } else if (response.includes('navigate:product:')) {
       const productMatch = response.match(/navigate:product:([\w-]+)/);
       if (productMatch) {
         router.push(`/product/${productMatch[1]}`);
         setCurrentPage('product');
+        hasNavigation = true;
+        const product = getProductById(productMatch[1]);
+        navigationMessage = `\n\n📍 Navigating to ${product?.name || 'product'} page...`;
       }
     }
     
-    // Remove navigation commands from display
-    return response.replace(/navigate:[\w-]+:?[\w-]*/g, '').trim();
+    // Remove navigation commands from display and add navigation message if navigation occurred
+    let cleanedResponse = response.replace(/navigate:[\w-]+:?[\w-]*/g, '').trim();
+    
+    // If response becomes empty after removing navigation commands, provide a default message
+    if (!cleanedResponse && hasNavigation) {
+      cleanedResponse = 'Let me take you there!' + navigationMessage;
+    } else if (hasNavigation) {
+      cleanedResponse += navigationMessage;
+    }
+    
+    return cleanedResponse;
   };
 
   const processCartCommands = (response: string): string => {
     let updatedResponse = response;
+    
+    // Handle bulk add all products
+    if (response.includes('add_all_to_cart')) {
+      const allProducts = getAllProducts();
+      const addedProducts: string[] = [];
+      let totalAdded = 0;
+      let totalCost = 0;
+      
+      allProducts.forEach(product => {
+        // Check if product is not already in cart or add 1 more if it is
+        const existingItem = cartState.items.find(item => item.id === product.id);
+        if (!existingItem) {
+          addItem(product, 1);
+          addedProducts.push(`${product.name}`);
+          totalAdded++;
+          totalCost += product.price;
+        }
+      });
+      
+      if (addedProducts.length > 0) {
+        const confirmation = `✅ Added ${totalAdded} products to your cart (₹${totalCost} total)`;
+        updatedResponse = updatedResponse.replace(/add_all_to_cart/g, confirmation);
+      } else {
+        updatedResponse = updatedResponse.replace(/add_all_to_cart/g, '✅ All products already in your cart!');
+      }
+    }
     
     // Handle add to cart (support multiple commands in one response)
     const addRegex = /add_to_cart:([\w-]+)(?::(\d+))?/g;
@@ -140,16 +187,20 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       const newEstimatedTotal = currentTotal + product.price * quantity;
       const newItemCount = currentItemCount + quantity;
 
-      const confirmation = `✅ Added ${quantity} ${product.name}${quantity > 1 ? 's' : ''} to your cart!\n\n**Cart Update:**\n- Items added: ${quantity} x ${product.name} (${formatPriceWithUnit(product.price, product.unit)})\n- New cart total: ${formatPrice(newEstimatedTotal)}\n- Total items: ${newItemCount}`;
+      const confirmation = `✅ Added ${quantity} ${product.name} to your cart (${formatPriceWithUnit(product.price, product.unit)})`;
 
       updatedResponse = updatedResponse.replace(addMatch[0], confirmation);
     }
     
-    // Handle remove from cart
-    const removeFromCartMatch = response.match(/remove_from_cart:([\w-]+)(?::(\d+))?/);
-    if (removeFromCartMatch) {
-      const productId = removeFromCartMatch[1];
-      const quantity = parseInt(removeFromCartMatch[2] || '1');
+    // Handle remove from cart (support multiple removals)
+    const removeRegex = /remove_from_cart:([\w-]+)(?::(\d+))?/g;
+    let removeMatch;
+    const removedItems: string[] = [];
+    let totalRefunded = 0;
+    
+    while ((removeMatch = removeRegex.exec(response)) !== null) {
+      const productId = removeMatch[1];
+      const quantity = parseInt(removeMatch[2] || '1');
       const cartItem = cartState.items.find(item => item.id === productId);
       
       if (cartItem) {
@@ -158,22 +209,185 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
           if (quantity >= cartItem.quantity) {
             // Remove entire item
             removeItem(productId);
-            updatedResponse = updatedResponse.replace(/remove_from_cart:[\w-]+:?\d*/g, 
-              `🗑️ Removed all ${product.name} from your cart!\n\n**Cart Update:**\n- Items removed: ${cartItem.quantity} x ${product.name}\n- Amount refunded: ${formatPrice(product.price * cartItem.quantity)}`
-            ).trim();
+            removedItems.push(product.name);
+            totalRefunded += product.price * cartItem.quantity;
           } else {
             // Update quantity
             const newQuantity = cartItem.quantity - quantity;
             updateQuantity(productId, newQuantity);
-            updatedResponse = updatedResponse.replace(/remove_from_cart:[\w-]+:?\d*/g, 
-              `🗑️ Removed ${quantity} ${product.name}${quantity > 1 ? 's' : ''} from your cart!\n\n**Cart Update:**\n- Remaining: ${newQuantity} x ${product.name}\n- Amount refunded: ${formatPrice(product.price * quantity)}`
-            ).trim();
+            removedItems.push(`${quantity} ${product.name}`);
+            totalRefunded += product.price * quantity;
           }
         }
+      }
+    }
+    
+    if (removedItems.length > 0) {
+      const refundText = totalRefunded > 0 ? ` (₹${totalRefunded} refunded)` : '';
+      const confirmation = removedItems.length === 1 
+        ? `🗑️ Removed ${removedItems[0]} from your cart${refundText}`
+        : `🗑️ Removed ${removedItems.join(' and ')} from your cart${refundText}`;
+      
+      updatedResponse = updatedResponse.replace(/remove_from_cart:[\w-]+:?\d*/g, '').trim();
+      updatedResponse = updatedResponse ? `${updatedResponse}\n\n${confirmation}` : confirmation;
+    }
+    
+    // Handle intelligent category removal
+    const categoryRemovalMatch = response.match(/remove_category:([\w-]+)/);
+    if (categoryRemovalMatch) {
+      const category = categoryRemovalMatch[1];
+      const removedCategoryItems: string[] = [];
+      let categoryRefunded = 0;
+      
+      if (category === 'non-leafy') {
+        // Remove all non-leafy vegetables
+        const leafyCategories = ['Leafy Greens'];
+        cartState.items.forEach(item => {
+          const product = getProductById(item.id);
+          if (product && !leafyCategories.includes(product.category)) {
+            removeItem(item.id);
+            removedCategoryItems.push(product.name);
+            categoryRefunded += product.price * item.quantity;
+          }
+        });
+      } else if (category === 'leafy') {
+        // Remove all leafy vegetables
+        const leafyCategories = ['Leafy Greens'];
+        cartState.items.forEach(item => {
+          const product = getProductById(item.id);
+          if (product && leafyCategories.includes(product.category)) {
+            removeItem(item.id);
+            removedCategoryItems.push(product.name);
+            categoryRefunded += product.price * item.quantity;
+          }
+        });
+      } else if (category === 'organic') {
+        // Remove all organic items
+        cartState.items.forEach(item => {
+          const product = getProductById(item.id);
+          if (product && product.isOrganic) {
+            removeItem(item.id);
+            removedCategoryItems.push(product.name);
+            categoryRefunded += product.price * item.quantity;
+          }
+        });
+      } else if (category === 'non-organic') {
+        // Remove all non-organic items
+        cartState.items.forEach(item => {
+          const product = getProductById(item.id);
+          if (product && !product.isOrganic) {
+            removeItem(item.id);
+            removedCategoryItems.push(product.name);
+            categoryRefunded += product.price * item.quantity;
+          }
+        });
+      } else if (category === 'expensive') {
+        // Remove items over ₹350
+        cartState.items.forEach(item => {
+          const product = getProductById(item.id);
+          if (product && product.price > 350) {
+            removeItem(item.id);
+            removedCategoryItems.push(product.name);
+            categoryRefunded += product.price * item.quantity;
+          }
+        });
+      } else if (category === 'cheap') {
+        // Remove items under ₹250
+        cartState.items.forEach(item => {
+          const product = getProductById(item.id);
+          if (product && product.price < 250) {
+            removeItem(item.id);
+            removedCategoryItems.push(product.name);
+            categoryRefunded += product.price * item.quantity;
+          }
+        });
+      }
+      
+      if (removedCategoryItems.length > 0) {
+        const categoryRefundText = categoryRefunded > 0 ? ` (₹${categoryRefunded} refunded)` : '';
+        const categoryConfirmation = `🗑️ Removed all ${category.replace('-', ' ')} items: ${removedCategoryItems.join(', ')}${categoryRefundText}`;
+        updatedResponse = updatedResponse.replace(/remove_category:[\w-]+/g, categoryConfirmation);
       } else {
-        updatedResponse = updatedResponse.replace(/remove_from_cart:[\w-]+:?\d*/g, 
-          `❌ Item not found in your cart.`
-        ).trim();
+        updatedResponse = updatedResponse.replace(/remove_category:[\w-]+/g, `❌ No ${category.replace('-', ' ')} items found in your cart`);
+      }
+    }
+    
+    // Handle smart price-based removal
+    const priceRankMatch = response.match(/remove_price_rank:(\d+)/);
+    if (priceRankMatch) {
+      const position = parseInt(priceRankMatch[1]);
+      
+      // Sort cart items by price (descending)
+      const sortedByPrice = cartState.items
+        .map(item => ({ ...item, product: getProductById(item.id) }))
+        .filter(item => item.product)
+        .sort((a, b) => (b.product?.price || 0) - (a.product?.price || 0));
+      
+      if (sortedByPrice.length >= position) {
+        const itemToRemove = sortedByPrice[position - 1];
+        if (itemToRemove.product) {
+          removeItem(itemToRemove.id);
+          const refundAmount = itemToRemove.product.price * itemToRemove.quantity;
+          const confirmation = `🗑️ Removed ${itemToRemove.product.name} (${position === 1 ? 'most expensive' : position === 2 ? 'second most expensive' : `${position}${position > 3 ? 'th' : position === 3 ? 'rd' : 'nd'} most expensive`} item) from your cart (₹${refundAmount} refunded)`;
+          updatedResponse = updatedResponse.replace(/remove_price_rank:\d+/g, confirmation);
+        }
+      } else {
+        updatedResponse = updatedResponse.replace(/remove_price_rank:\d+/g, `❌ Only ${sortedByPrice.length} items in cart, cannot remove ${position}${position > 3 ? 'th' : position === 3 ? 'rd' : position === 2 ? 'nd' : 'st'} most expensive`);
+      }
+    }
+    
+    // Handle smart criteria removal
+    const smartRemovalMatch = response.match(/remove_smart:(\w+)/);
+    if (smartRemovalMatch) {
+      const criteria = smartRemovalMatch[1];
+      let targetItem = null;
+      let confirmationText = '';
+      
+      if (criteria === 'priciest' || criteria === 'most_expensive') {
+        // Find most expensive item
+        targetItem = cartState.items
+          .map(item => ({ ...item, product: getProductById(item.id) }))
+          .filter(item => item.product)
+          .reduce((max, item) => 
+            (!max || (item.product?.price || 0) > (max.product?.price || 0)) ? item : max
+          , null);
+        confirmationText = 'most expensive';
+      } else if (criteria === 'cheapest' || criteria === 'least_expensive') {
+        // Find cheapest item
+        targetItem = cartState.items
+          .map(item => ({ ...item, product: getProductById(item.id) }))
+          .filter(item => item.product)
+          .reduce((min, item) => 
+            (!min || (item.product?.price || 0) < (min.product?.price || 0)) ? item : min
+          , null);
+        confirmationText = 'cheapest';
+      } else if (criteria === 'largest_quantity' || criteria === 'most_quantity') {
+        // Find item with largest quantity
+        targetItem = cartState.items
+          .map(item => ({ ...item, product: getProductById(item.id) }))
+          .filter(item => item.product)
+          .reduce((max, item) => 
+            (!max || item.quantity > max.quantity) ? item : max
+          , null);
+        confirmationText = 'largest quantity';
+      } else if (criteria === 'smallest_quantity' || criteria === 'least_quantity') {
+        // Find item with smallest quantity
+        targetItem = cartState.items
+          .map(item => ({ ...item, product: getProductById(item.id) }))
+          .filter(item => item.product)
+          .reduce((min, item) => 
+            (!min || item.quantity < min.quantity) ? item : min
+          , null);
+        confirmationText = 'smallest quantity';
+      }
+      
+      if (targetItem && targetItem.product) {
+        removeItem(targetItem.id);
+        const refundAmount = targetItem.product.price * targetItem.quantity;
+        const confirmation = `🗑️ Removed ${targetItem.product.name} (${confirmationText} item) from your cart (₹${refundAmount} refunded)`;
+        updatedResponse = updatedResponse.replace(/remove_smart:\w+/g, confirmation);
+      } else {
+        updatedResponse = updatedResponse.replace(/remove_smart:\w+/g, `❌ No items found matching "${criteria}" criteria`);
       }
     }
     
@@ -219,7 +433,53 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     
     // Cart operation commands
     
-    // Remove from cart commands
+    // Multiple product removal commands
+    if ((lowerMessage.includes('remove') || lowerMessage.includes('take out') || lowerMessage.includes('delete')) && 
+        (lowerMessage.includes('and') || lowerMessage.includes(','))) {
+      // Handle multiple product removal like "remove cucumbers and onions"
+      const productKeywords = [
+        { keywords: ['cucumber'], id: 'cucumber' },
+        { keywords: ['onion'], id: 'onion' },
+        { keywords: ['tomato'], id: 'tomato' },
+        { keywords: ['carrot'], id: 'carrot' },
+        { keywords: ['lettuce'], id: 'lettuce' },
+        { keywords: ['broccoli'], id: 'broccoli' },
+        { keywords: ['pepper'], id: 'bell-pepper' },
+        { keywords: ['spinach'], id: 'spinach' },
+        { keywords: ['zucchini'], id: 'zucchini' },
+        { keywords: ['potato'], id: 'potato' },
+        { keywords: ['eggplant'], id: 'eggplant' },
+        { keywords: ['cabbage'], id: 'cabbage' },
+        { keywords: ['cauliflower'], id: 'cauliflower' },
+        { keywords: ['corn'], id: 'corn' },
+        { keywords: ['mushroom'], id: 'mushroom' }
+      ];
+      
+      const productsToRemove: string[] = [];
+      let totalRefunded = 0;
+      
+      productKeywords.forEach(productInfo => {
+        if (productInfo.keywords.some(keyword => lowerMessage.includes(keyword))) {
+          const cartItem = cartState.items.find(item => item.id === productInfo.id);
+          if (cartItem) {
+            removeItem(productInfo.id);
+            productsToRemove.push(cartItem.name);
+            totalRefunded += cartItem.price * cartItem.quantity;
+          }
+        }
+      });
+      
+      if (productsToRemove.length > 0) {
+        const refundText = totalRefunded > 0 ? ` (₹${totalRefunded} refunded)` : '';
+        return productsToRemove.length === 1 
+          ? `🗑️ Removed ${productsToRemove[0]} from your cart${refundText}`
+          : `🗑️ Removed ${productsToRemove.join(' and ')} from your cart${refundText}`;
+      } else {
+        return `❌ None of those items were found in your cart.`;
+      }
+    }
+    
+    // Single product removal commands
     if ((lowerMessage.includes('remove') || lowerMessage.includes('take out') || lowerMessage.includes('delete')) && lowerMessage.includes('tomato')) {
       const cartItem = cartState.items.find(item => item.id === 'tomato');
       if (cartItem) {
@@ -228,10 +488,10 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         
         if (quantity >= cartItem.quantity) {
           removeItem('tomato');
-          return `🗑️ Removed all ${cartItem.name} from your cart!`;
+          return `🗑️ Removed ${cartItem.name} from your cart (₹${cartItem.price * cartItem.quantity} refunded)`;
         } else {
           updateQuantity('tomato', cartItem.quantity - quantity);
-          return `🗑️ Removed ${quantity} ${cartItem.name}${quantity > 1 ? 's' : ''} from your cart! ${cartItem.quantity - quantity} remaining.`;
+          return `🗑️ Removed ${quantity} ${cartItem.name} from your cart (₹${cartItem.price * quantity} refunded)`;
         }
       } else {
         return `❌ No tomatoes found in your cart.`;
@@ -257,6 +517,31 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
+    // Bulk add command
+    if ((lowerMessage.includes('add') && (lowerMessage.includes('all') || lowerMessage.includes('everything') || lowerMessage.includes('each'))) ||
+        (lowerMessage.includes('1 unit each') || lowerMessage.includes('one of each'))) {
+      const allProducts = getAllProducts();
+      const addedProducts: string[] = [];
+      let totalAdded = 0;
+      let totalCost = 0;
+      
+      allProducts.forEach(product => {
+        const existingItem = cartState.items.find(item => item.id === product.id);
+        if (!existingItem) {
+          addItem(product, 1);
+          addedProducts.push(product.name);
+          totalAdded++;
+          totalCost += product.price;
+        }
+      });
+      
+      if (addedProducts.length > 0) {
+        return `✅ Added ${totalAdded} products to your cart!\n\n**Products Added:**\n${addedProducts.map(name => `• ${name}`).join('\n')}\n\n**Total Cost Added:** ${formatPrice(totalCost)}\n**Your cart now has:** ${cartState.items.length + totalAdded} unique items`;
+      } else {
+        return '✅ All available products are already in your cart!';
+      }
+    }
+    
     // Navigation commands (fallback for non-AI responses)
     if (lowerMessage.includes('home') || lowerMessage.includes('main page')) {
       router.push('/');
@@ -264,7 +549,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       return "Taking you to the home page!";
     }
     
-    if (lowerMessage.includes('cart') || lowerMessage.includes('shopping cart')) {
+    if ((lowerMessage.includes('cart') || lowerMessage.includes('shopping cart')) && !lowerMessage.includes('add')) {
       router.push('/cart');
       setCurrentPage('cart');
       return `Taking you to your cart! You have ${cartState.items.length} items.`;
@@ -379,12 +664,13 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       let response: string;
       
       if (hasApiKey && openaiService.getApiKey()) {
-        // Get real-time cart information
-        const currentCartItems = cartState.items.map(item => 
+        // Get real-time cart information using the most current state
+        const currentCart = cartStateRef;
+        const currentCartItems = currentCart.items.map(item => 
           `${item.name} x${item.quantity} = ${formatPrice(item.price * item.quantity)}`
         ).join(', ');
-        const cartSummary = cartState.items.length > 0 
-          ? `Cart contains: ${currentCartItems}. Total: ${formatPrice(cartState.total)}`
+        const cartSummary = currentCart.items.length > 0 
+          ? `Cart contains: ${currentCartItems}. Total: ${formatPrice(currentCart.total)}`
           : 'Cart is empty';
 
         // Use OpenAI for response
@@ -415,12 +701,27 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         - Individual product prices are per unit as listed
         - Cart total is already calculated correctly in the cart status
         
+        **INTELLIGENT CATEGORIZATION SYSTEM**:
+        **Leafy Vegetables**: Lettuce, Spinach, Cabbage (category: "Leafy Greens")
+        **Non-Leafy Vegetables**: Tomatoes, Carrots, Broccoli, Bell Peppers, Cucumbers, Onions, Zucchini, Potatoes, Eggplants, Cauliflower, Corn, Mushrooms, Sweet Potatoes
+        **Root Vegetables**: Carrots, Potatoes, Sweet Potatoes, Onions
+        **Cruciferous**: Broccoli, Cauliflower, Cabbage
+        **Expensive Items**: Products over ₹350 (Bell Peppers ₹599, Broccoli ₹429, Mushrooms ₹389, Cauliflower ₹399, etc.)
+        **Cheap Items**: Products under ₹250 (Carrots ₹249, Lettuce ₹199, Potatoes ₹159, etc.)
+        **Organic vs Non-Organic**: Check the isOrganic property of each product
+        
         **Your capabilities**:
         - **Navigate the site** (respond with navigation commands like "navigate:home", "navigate:cart", "navigate:product:tomato")
         - **Add products to cart** (respond with "add_to_cart:productId:quantity" - e.g., "add_to_cart:carrot:2")
+        - **Add all products to cart** (respond with "add_all_to_cart" when user wants to add one of each product)
         - **Remove products from cart** (respond with "remove_from_cart:productId:quantity" - e.g., "remove_from_cart:tomato:1")
+        - **Remove by category** (respond with "remove_category:categoryName" - e.g., "remove_category:non-leafy", "remove_category:organic", "remove_category:expensive")
+        - **Remove by price rank** (respond with "remove_price_rank:position" - e.g., "remove_price_rank:1" for most expensive, "remove_price_rank:2" for second most expensive)
+        - **Remove by smart criteria** (respond with "remove_smart:criteria" - e.g., "remove_smart:priciest", "remove_smart:cheapest", "remove_smart:largest_quantity")
         - **Update product quantities** (respond with "update_quantity:productId:newQuantity" - e.g., "update_quantity:carrot:3")
         - **Clear entire cart** (respond with "clear_cart" to remove all items)
+        - **Handle bulk operations** like "add 1 unit each" or "add all products" (use "add_all_to_cart")
+        - **Intelligent category operations** like "remove all non-leafy vegetables", "remove expensive items", "keep only organic"
         - **Search for products** by name, category, or cooking use
         - **Provide detailed product information** with nutritional benefits, organic status, and cooking tips
         - **Recommend vegetables** for specific dishes, cuisines, health goals, or dietary requirements
@@ -429,6 +730,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         - **Be context-aware** of what users are currently hovering over or viewing
         - **Handle complex requests** like "remove one tomato" or "change carrots to 3 kg"
         - **Understand natural language** for cart operations (e.g., "take out", "remove", "delete", "reduce")
+        - **Process bulk requests** like "add one of each", "add all vegetables", "1 unit each"
         - **Accurately inform about organic status** (products marked [ORGANIC CERTIFIED] are certified organic)
         - **Calculate savings** and price comparisons
         - **Suggest complementary items** based on cart contents
@@ -444,11 +746,31 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
         **ADVANCED CART OPERATION RULES**:
         - **Natural Language Processing**: Understand variations like "remove one", "take out", "delete", "reduce by", "make it 3", etc.
         - **Remove Operations**: Use "remove_from_cart:productId:quantity" for partial removal or full removal
+        - **Category Removal**: Use "remove_category:categoryName" for intelligent bulk removal
         - **Quantity Updates**: Use "update_quantity:productId:newQuantity" when users specify exact quantities
         - **Smart Quantity Handling**: If user says "remove one tomato" and they have 2 tomatoes, use "remove_from_cart:tomato:1"
         - **Full Item Removal**: If removing all of an item, use "remove_from_cart:productId" (without quantity)
         - **Context-Aware Operations**: Always reference current cart contents when processing requests
         - **Confirmation Responses**: Always confirm what action was taken and show updated cart status
+        
+        **INTELLIGENT REQUEST PROCESSING**:
+        - **"Remove all non-leafy vegetables"** → Use "remove_category:non-leafy"
+        - **"Remove all expensive items"** → Use "remove_category:expensive"
+        - **"Keep only organic items"** → Use "remove_category:non-organic"
+        - **"Remove all cheap vegetables"** → Use "remove_category:cheap"
+        - **"Remove leafy vegetables"** → Use "remove_category:leafy"
+        - **"Remove all organic items"** → Use "remove_category:organic"
+        - **"Remove the priciest/most expensive"** → Use "remove_smart:priciest"
+        - **"Remove second priciest"** → Use "remove_price_rank:2"
+        - **"Remove third most expensive"** → Use "remove_price_rank:3"
+        - **"Remove the cheapest"** → Use "remove_smart:cheapest"
+        - **"Remove" (without specification after previous context)** → Analyze previous conversation to understand what to remove
+        - **Automatically detect and categorize** when users ask for complex removals
+        
+        **CONTEXT-AWARE PROCESSING**:
+        - **Track conversation flow** - if user says "remove the priciest", then "remove second priciest", then just "remove", understand they want the third priciest
+        - **Use real-time cart analysis** - dynamically determine what "most expensive", "second priciest" etc. means based on CURRENT cart contents
+        - **Intelligent disambiguation** - when user says just "remove", ask for clarification or infer from context
         
         **INTELLIGENT RESPONSE PATTERNS**:
         - If user is imprecise (e.g., "remove some"), ask for clarification

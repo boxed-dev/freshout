@@ -1,14 +1,14 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useChat } from '@/contexts/ChatContext';
-import { X, Send, MessageSquare, Settings, Loader2, Sparkles } from 'lucide-react';
+import { X, Send, MessageSquare, Settings, Loader2, Sparkles } from '@/lib/icons';
 import ApiKeySettings from './ApiKeySettings';
 import { openaiService } from '@/services/openaiService';
 import ReactMarkdown from 'react-markdown';
 
-const ChatBot = () => {
+const ChatBot = memo(() => {
   const { messages, isOpen, setIsOpen, sendMessage, hasApiKey } = useChat();
   const [inputValue, setInputValue] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -22,22 +22,22 @@ const ChatBot = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (inputValue.trim()) {
       sendMessage(inputValue);
       setInputValue('');
     }
-  };
+  }, [inputValue, sendMessage]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSend();
     }
-  };
+  }, [handleSend]);
 
-  const handleApiKeySet = () => {
+  const handleApiKeySet = useCallback(() => {
     window.location.reload();
-  };
+  }, []);
 
   if (!isOpen) {
     return (
@@ -168,6 +168,8 @@ const ChatBot = () => {
       )}
     </>
   );
-};
+});
+
+ChatBot.displayName = 'ChatBot';
 
 export default ChatBot;

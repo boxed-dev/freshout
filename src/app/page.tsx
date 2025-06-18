@@ -1,18 +1,25 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
-import ChatBot from '@/components/ChatBot';
 import { products } from '@/data/products';
 import { useCart } from '@/contexts/CartContext';
 import { useChat } from '@/contexts/ChatContext';
 import { useHover } from '@/contexts/HoverContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ProductBadge, FeatureCard } from '@/components/ui/custom';
-import { ShoppingCart, ArrowRight, Truck, Shield, Leaf } from 'lucide-react';
+import { ShoppingCart, ArrowRight, Truck, Shield, Leaf } from '@/lib/icons';
 import { formatPriceWithUnit } from '@/lib/utils';
+import ProductCard from '@/components/ProductCard';
+
+// Dynamic import for ChatBot to improve initial load time
+const ChatBot = dynamic(() => import('@/components/ChatBot'), {
+  ssr: false,
+  loading: () => null
+});
 
 export default function HomePage() {
   const router = useRouter();
@@ -24,16 +31,22 @@ export default function HomePage() {
     setCurrentPage('home');
   }, [setCurrentPage]);
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = useCallback((product: any) => {
     addItem(product);
-  };
+  }, [addItem]);
 
-  const handleViewProduct = (productId: string) => {
+  const handleViewProduct = useCallback((productId: string) => {
     router.push(`/product/${productId}`);
-  };
-  const prefetchProduct = (productId: string) => {
+  }, [router]);
+  
+  const prefetchProduct = useCallback((productId: string) => {
     router.prefetch?.(`/product/${productId}`);
-  };
+  }, [router]);
+
+  const scrollToProducts = useCallback(() => {
+    const grid = document.getElementById('product-grid');
+    if (grid) grid.scrollIntoView({ behavior: 'smooth' });
+  }, []);
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%)' }}>
       <Navbar />
@@ -93,10 +106,7 @@ export default function HomePage() {
               alignItems: 'center',
               gap: '0.5rem'
             }}
-            onClick={() => {
-              const grid = document.getElementById('product-grid');
-              if (grid) grid.scrollIntoView({ behavior: 'smooth' });
-            }}
+            onClick={scrollToProducts}
             onMouseOver={(e) => {
               e.currentTarget.style.background = '#047857';
               e.currentTarget.style.transform = 'translateY(-2px)';
@@ -198,55 +208,21 @@ export default function HomePage() {
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map(product => (
-              <Card key={product.id}
-                className="group hover:shadow-xl transition-all duration-300 border-0 bg-white rounded-2xl overflow-hidden"
-                onMouseEnter={() => {
-                  setHoveredProduct(product.id);
-                  setHoveredElement(`product-card-${product.id}`);
-                  prefetchProduct(product.id);
-                }}
-                onMouseLeave={() => {
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddToCart={handleAddToCart}
+                onViewProduct={handleViewProduct}
+                onMouseEnter={useCallback((productId: string) => {
+                  setHoveredProduct(productId);
+                  setHoveredElement(`product-card-${productId}`);
+                }, [setHoveredProduct, setHoveredElement])}
+                onMouseLeave={useCallback(() => {
                   setHoveredProduct(null);
                   setHoveredElement(null);
-                }}>
-                <div className="aspect-square overflow-hidden relative">
-                  <img 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    src={product.image} 
-                    alt={product.name} 
-                  />
-                  {product.isOrganic && (
-                    <span className="absolute top-3 left-3 bg-emerald-500 text-white text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1">
-                      <Leaf className="w-3 h-3" />
-                      Organic
-                    </span>
-                  )}
-                </div>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold mb-2 text-neutral-900">{product.name}</h3>
-                  <p className="text-sm text-neutral-500 mb-4 line-clamp-2 leading-relaxed">{product.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-emerald-600">{formatPriceWithUnit(product.price, product.unit)}</span>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleViewProduct(product.id)}
-                        className="border-neutral-200 hover:border-neutral-300 rounded-lg"
-                      >
-                        View
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        className="bg-emerald-600 hover:bg-emerald-700 rounded-lg" 
-                        onClick={() => handleAddToCart(product)}
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>              </Card>
+                }, [setHoveredProduct, setHoveredElement])}
+                onPrefetch={prefetchProduct}
+              />
             ))}
           </div>        </div>
       </section>
