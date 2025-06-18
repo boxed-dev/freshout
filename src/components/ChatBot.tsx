@@ -1,11 +1,9 @@
-
 import React, { useState, useRef, useEffect, memo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useChat } from '@/contexts/ChatContext';
 import { X, Send, MessageSquare, Settings, Loader2, Sparkles } from '@/lib/icons';
 import ApiKeySettings from './ApiKeySettings';
-import { openaiService } from '@/services/openaiService';
 import ReactMarkdown from 'react-markdown';
 
 const ChatBot = memo(() => {

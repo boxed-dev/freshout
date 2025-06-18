@@ -12,10 +12,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatPriceWithUnit } from '@/lib/utils';
 
-export default function ProductPage({ params }: { params: { id: string } }) {
+export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { id } = params;
-  const product = getProductById(id);
+  const [id, setId] = React.useState<string>('');
+  const [product, setProduct] = React.useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      const resolvedParams = await params;
+      const productId = resolvedParams.id;
+      setId(productId);
+      setProduct(getProductById(productId));
+    })();
+  }, [params]);
   const { state, addItem } = useCart();
   const { setCurrentPage } = useChat();
   const [quantity, setQuantity] = useState(1);
@@ -24,7 +33,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     setCurrentPage('product');
   }, [setCurrentPage]);
 
-  if (!product) {
+  if (!product && id) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
         <Navbar />
@@ -40,6 +49,18 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           >
             Back to Home
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
+        <Navbar />
+        <div className="flex flex-col items-center justify-center py-24 px-6">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+          <p className="mt-4 text-neutral-600">Loading product...</p>
         </div>
       </div>
     );
@@ -107,7 +128,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-neutral-900">Features</h3>
               <div className="grid grid-cols-2 gap-3">
-                {product.features?.map((feature, index) => (
+                {product.features?.map((feature: string, index: number) => (
                   <div key={index} className="flex items-center gap-2 text-sm text-neutral-600">
                     <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
                     {feature}

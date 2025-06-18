@@ -1,18 +1,15 @@
 'use client';
 
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
 import { products } from '@/data/products';
+import type { Product } from '@/contexts/CartContext';
 import { useCart } from '@/contexts/CartContext';
 import { useChat } from '@/contexts/ChatContext';
 import { useHover } from '@/contexts/HoverContext';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ShoppingCart, ArrowRight, Truck, Shield, Leaf } from '@/lib/icons';
-import { formatPriceWithUnit } from '@/lib/utils';
+import { ArrowRight, Truck, Shield, Leaf } from '@/lib/icons';
 import ProductCard from '@/components/ProductCard';
 
 // Dynamic import for ChatBot to improve initial load time
@@ -31,7 +28,7 @@ export default function HomePage() {
     setCurrentPage('home');
   }, [setCurrentPage]);
 
-  const handleAddToCart = useCallback((product: any) => {
+  const handleAddToCart = useCallback((product: Product) => {
     addItem(product);
   }, [addItem]);
 
@@ -213,14 +210,14 @@ export default function HomePage() {
                 product={product}
                 onAddToCart={handleAddToCart}
                 onViewProduct={handleViewProduct}
-                onMouseEnter={useCallback((productId: string) => {
+                onMouseEnter={(productId: string) => {
                   setHoveredProduct(productId);
                   setHoveredElement(`product-card-${productId}`);
-                }, [setHoveredProduct, setHoveredElement])}
-                onMouseLeave={useCallback(() => {
+                }}
+                onMouseLeave={() => {
                   setHoveredProduct(null);
                   setHoveredElement(null);
-                }, [setHoveredProduct, setHoveredElement])}
+                }}
                 onPrefetch={prefetchProduct}
               />
             ))}

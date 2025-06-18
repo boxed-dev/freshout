@@ -8,7 +8,6 @@ import { useCart } from '@/contexts/CartContext';
 import { useChat } from '@/contexts/ChatContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { GradientBackground } from '@/components/ui/custom';
 import { ArrowLeft, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { formatPrice, formatPriceWithUnit } from '@/lib/utils';
 

@@ -345,39 +345,39 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       
       if (criteria === 'priciest' || criteria === 'most_expensive') {
         // Find most expensive item
-        targetItem = cartState.items
+        const items = cartState.items
           .map(item => ({ ...item, product: getProductById(item.id) }))
-          .filter(item => item.product)
-          .reduce((max, item) => 
-            (!max || (item.product?.price || 0) > (max.product?.price || 0)) ? item : max
-          , null);
+          .filter(item => item.product);
+        targetItem = items.length > 0 ? items.reduce((max, item) => 
+          (item.product?.price || 0) > (max.product?.price || 0) ? item : max
+        ) : null;
         confirmationText = 'most expensive';
       } else if (criteria === 'cheapest' || criteria === 'least_expensive') {
         // Find cheapest item
-        targetItem = cartState.items
+        const items = cartState.items
           .map(item => ({ ...item, product: getProductById(item.id) }))
-          .filter(item => item.product)
-          .reduce((min, item) => 
-            (!min || (item.product?.price || 0) < (min.product?.price || 0)) ? item : min
-          , null);
+          .filter(item => item.product);
+        targetItem = items.length > 0 ? items.reduce((min, item) => 
+          (item.product?.price || 0) < (min.product?.price || 0) ? item : min
+        ) : null;
         confirmationText = 'cheapest';
       } else if (criteria === 'largest_quantity' || criteria === 'most_quantity') {
         // Find item with largest quantity
-        targetItem = cartState.items
+        const items = cartState.items
           .map(item => ({ ...item, product: getProductById(item.id) }))
-          .filter(item => item.product)
-          .reduce((max, item) => 
-            (!max || item.quantity > max.quantity) ? item : max
-          , null);
+          .filter(item => item.product);
+        targetItem = items.length > 0 ? items.reduce((max, item) => 
+          item.quantity > max.quantity ? item : max
+        ) : null;
         confirmationText = 'largest quantity';
       } else if (criteria === 'smallest_quantity' || criteria === 'least_quantity') {
         // Find item with smallest quantity
-        targetItem = cartState.items
+        const items = cartState.items
           .map(item => ({ ...item, product: getProductById(item.id) }))
-          .filter(item => item.product)
-          .reduce((min, item) => 
-            (!min || item.quantity < min.quantity) ? item : min
-          , null);
+          .filter(item => item.product);
+        targetItem = items.length > 0 ? items.reduce((min, item) => 
+          item.quantity < min.quantity ? item : min
+        ) : null;
         confirmationText = 'smallest quantity';
       }
       
