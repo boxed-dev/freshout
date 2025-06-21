@@ -13,7 +13,7 @@ An interactive e-commerce platform that reimagines online shopping through natur
 
 ---
 
-## ✨ <b>Features</b>
+## <b>Features</b>
 
 - <b>`Shop with Everyday Language`</b>: Navigate and shop using plain English commands (e.g., "add two of those to my cart", "show me all products in electronics").
 - <b>`Smart Shopping Assistant`</b>: An assistant that understands your current page, cart contents, and even what you're pointing at.
@@ -26,7 +26,7 @@ An interactive e-commerce platform that reimagines online shopping through natur
 
 ---
 
-## 🚀 <b>Setup</b>
+## <b>Setup</b>
 
 <b>Important:</b> For the full interactive experience, you'll need an API key. The application's core features work without it.
 
@@ -63,7 +63,7 @@ An interactive e-commerce platform that reimagines online shopping through natur
 
 ---
 
-## 🛠️ <b>Usage</b>
+## <b>Usage</b>
 
 ### Command-Based Shopping
 
@@ -108,7 +108,7 @@ Navigate seamlessly through text commands:
 
 ---
 
-## 🏗️ <b>Technical Architecture</b>
+## <b>Technical Architecture</b>
 
 FreshOut operates through a context-aware system:
 
@@ -151,7 +151,7 @@ App Layout
 
 ---
 
-## 🧠 <b>Problems Faced and Solutions</b>
+## <b>Problems Faced and Solutions</b>
 
 Building an interactive, command-driven e-commerce platform presented unique challenges:
 
@@ -181,7 +181,7 @@ Building an interactive, command-driven e-commerce platform presented unique cha
 
 ---
 
-## 📜 <b>Design Principles</b>
+## <b>Design Principles</b>
 
 FreshOut is built upon the following core principles:
 
@@ -193,7 +193,7 @@ FreshOut is built upon the following core principles:
 
 ---
 
-## 🎯 <b>Highlights</b>
+## <b>Highlights</b>
 
 ### Contextual Shopping Assistant
 - **Real-time Context Awareness**: Understands the current page, cart contents, and user interactions.
@@ -212,14 +212,14 @@ FreshOut is built upon the following core principles:
 
 ---
 
-## 💬 <b>Feedback & Contributions</b>
+## <b>Feedback & Contributions</b>
 
 We'd love to hear your thoughts! If you encounter any issues, have suggestions for improvement, or want to contribute:
 - Please open an issue on the GitHub repository.
 - For contributions, feel free to fork the repository and submit a pull request.
 - Share your experience with the interactive shopping features!
 
-Your feedback helps us improve the natural language shopping experience! 💌
+Your feedback helps us improve the natural language shopping experience.
 
 ---
 
